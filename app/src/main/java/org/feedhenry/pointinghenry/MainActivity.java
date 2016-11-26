@@ -5,21 +5,31 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
+
+import com.feedhenry.sdk.FH;
+import com.feedhenry.sdk.FHActCallback;
+import com.feedhenry.sdk.FHResponse;
+import com.feedhenry.sdk.api.FHCloudRequest;
+
 import org.feedhenry.pointinghenry.model.Session;
 import org.feedhenry.pointinghenry.model.User;
+import org.json.fh.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
-    List<Session> sessions;
+    private static final String TAG = "MainActivity";
+    List<Session> sessions = new ArrayList<>();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -27,38 +37,9 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-
-
-
-        User passos = new User("passos");
-        sessions = new ArrayList<Session>();
-        sessions.add(new Session("session1", passos));
-        sessions.add(new Session("session2", passos));
-        // TODO fetch from cloud
-
         ListView listView = (ListView) findViewById(R.id.sessionList);
-        final ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, sessions);
-        listView.setAdapter(adapter);
+        displaySessions(listView);
 
-
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-
-            @Override
-            public void onItemClick(AdapterView<?> parent, final View view,
-                                    int position, long id) {
-                final Session item = (Session) parent.getItemAtPosition(position);
-                view.animate().setDuration(2000).alpha(0)
-                        .withEndAction(new Runnable() {
-                            @Override
-                            public void run() {
-                                sessions.remove(item);
-                                adapter.notifyDataSetChanged();
-                                view.setAlpha(1);
-                            }
-                        });
-            }
-
-        });
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -69,6 +50,66 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+    }
+
+    private void displaySessions(final ListView listView) {
+        try {
+
+            FH.init(this, new FHActCallback() {
+                @Override
+                public void success(FHResponse fhResponse) {
+                    try {
+                        FHCloudRequest request = FH.buildCloudRequest("poker", "GET", null, null);
+                        request.executeAsync(new FHActCallback() {
+                            @Override
+                            public void success(FHResponse fhResponse) {
+                                System.out.println("REPSONSE"+fhResponse.getRawResponse());
+                                String raw = fhResponse.getRawResponse();
+                                User passos = new User("passos");
+                                MainActivity.this.sessions = new ArrayList<Session>();
+                                MainActivity.this.sessions.add(new Session(fhResponse.getRawResponse(), passos));
+                                MainActivity.this.sessions.add(new Session("session2", passos));
+                                final ArrayAdapter adapter = new ArrayAdapter(MainActivity.this, android.R.layout.simple_list_item_1, MainActivity.this.sessions);
+                                listView.setAdapter(adapter);
+                                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                                    @Override
+                                    public void onItemClick(AdapterView<?> parent, final View view,
+                                                            int position, long id) {
+                                        final Session item = (Session) parent.getItemAtPosition(position);
+                                        view.animate().setDuration(2000).alpha(0)
+                                                .withEndAction(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        sessions.remove(item);
+                                                        adapter.notifyDataSetChanged();
+                                                        view.setAlpha(1);
+                                                    }
+                                                });
+                                    }
+                                });
+                            }
+
+                            @Override
+                            public void fail(FHResponse fhResponse) {
+                                Log.d(TAG, "cloud call - fail");
+                                Log.e(TAG, fhResponse.getErrorMessage(), fhResponse.getError());
+                            }
+                        });
+                    } catch (Exception e) {
+                        Log.e(TAG, e.getMessage(), e.getCause());
+                    }
+                }
+
+                @Override
+                public void fail(FHResponse fhResponse) {
+                    Log.d(TAG, "init - fail");
+                    Log.e(TAG, fhResponse.getErrorMessage(), fhResponse.getError());
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, e.getMessage(), e.getCause());
+        }
     }
 
     @Override
