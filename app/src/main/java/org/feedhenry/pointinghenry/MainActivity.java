@@ -21,6 +21,7 @@ import com.feedhenry.sdk.api.FHCloudRequest;
 
 import org.feedhenry.pointinghenry.model.Session;
 import org.feedhenry.pointinghenry.model.User;
+import org.json.fh.JSONArray;
 import org.json.fh.JSONObject;
 
 import java.util.ArrayList;
@@ -63,12 +64,19 @@ public class MainActivity extends AppCompatActivity {
                         request.executeAsync(new FHActCallback() {
                             @Override
                             public void success(FHResponse fhResponse) {
-                                System.out.println("REPSONSE"+fhResponse.getRawResponse());
-                                String raw = fhResponse.getRawResponse();
-                                User passos = new User("passos");
+                                JSONArray objects = fhResponse.getArray();
                                 MainActivity.this.sessions = new ArrayList<Session>();
-                                MainActivity.this.sessions.add(new Session(fhResponse.getRawResponse(), passos));
-                                MainActivity.this.sessions.add(new Session("session2", passos));
+                                for (int i =0; i < objects.length(); i++) {
+                                    JSONObject object = (JSONObject)objects.get(i);
+                                    String name = object.getString("Name");
+                                    String userName = object.getJSONObject("CreatedBy").getString("Name");
+                                    User user = new User(userName);
+                                    MainActivity.this.sessions.add(new Session(name, user));
+
+                                }
+                                System.out.println("REPSONSE" + objects);
+                                String raw = fhResponse.getRawResponse();
+
                                 final ArrayAdapter adapter = new ArrayAdapter(MainActivity.this, android.R.layout.simple_list_item_1, MainActivity.this.sessions);
                                 listView.setAdapter(adapter);
                                 listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
